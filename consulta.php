@@ -1,4 +1,6 @@
 <?php
+const SUPABASE_URL = 'https://vzvftpwiykzptkhaaqmi.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ6dmZ0cHdpeWt6cHRraGFhcW1pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQyNTc1MTYsImV4cCI6MjA3OTgzMzUxNn0.oRsaIywJxwaU1484HD8w1qtT89zgRil4CYvHwvKL6LY'; 
 
 
 $busca = isset($_GET['busca']) ? trim($_GET['busca']) : "";
