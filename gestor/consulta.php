@@ -1,7 +1,5 @@
 <?php
-// Substitua o include('conexao.php') e defina suas chaves secretas:
-supabaseUrl = 'https://vzvftpwiykzptkhaaqmi.supabase.co'
-const supabaseKey = process.env.SUPABASE_KEY
+
 
 $busca = isset($_GET['busca']) ? trim($_GET['busca']) : "";
 
