@@ -1,68 +1,46 @@
 <?php
-include('conexao.php');
+// Substitua o include('conexao.php') e defina suas chaves secretas:
+supabaseUrl = 'https://vzvftpwiykzptkhaaqmi.supabase.co'
+const supabaseKey = process.env.SUPABASE_KEY
 
 $busca = isset($_GET['busca']) ? trim($_GET['busca']) : "";
 
-if ($busca === "") {
-    // Se não tiver busca, retorna todos os pedidos
-    $sql = "SELECT id_pedido, data_criacao, nome_cliente, telefone, data_evento, combo_selecionado, valor_total, status, tema
-            FROM pedidos
-            ORDER BY data_criacao DESC";
+// Configuração da requisição (SELECT)
+$endpoint = "/rest/v1/pedidos";
+$query_params = "select=*&order=data_criacao.desc";
 
-    $resultado = $conexao->query($sql);
-
-    if (!$resultado) {
-        echo "<tr><td colspan='9'>Erro ao buscar pedidos.</td></tr>";
-        exit();
-    }
-} else {
-    $busca = "%$busca%";
-    $sql = "SELECT id_pedido, data_criacao, nome_cliente, telefone, data_evento, combo_selecionado, valor_total, status, tema
-            FROM pedidos
-            WHERE nome_cliente LIKE ? 
-            OR tema LIKE ? 
-            OR data_evento LIKE ?
-            ORDER BY data_criacao DESC";
-
-    $stmt = $conexao->prepare($sql);
-    $stmt->bind_param("sss", $busca, $busca, $busca);
-    $stmt->execute();
-    $resultado = $stmt->get_result();
+if ($busca !== "") {
+    // Adiciona o filtro LIKE do PostgREST (ilike.*%busca%)
+    $busca_param = urlencode("ilike.*%${busca}%");
+    $query_params .= "&or=(nome_cliente.${busca_param},tema.${busca_param},data_evento.${busca_param})";
 }
 
-// Se não tiver nada, retorna linha de aviso
-if ($resultado->num_rows == 0) {
-    echo "<tr><td colspan='9'>Nenhum resultado encontrado.</td></tr>";
+$url = $SUPABASE_URL . $endpoint . "?" . $query_params;
+
+// Realiza a requisição cURL
+$ch = curl_init($url);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+    "apikey: {$SUPABASE_KEY}",
+    "Authorization: Bearer {$SUPABASE_KEY}",
+    "Content-Type: application/json"
+));
+$response = curl_exec($ch);
+$http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+curl_close($ch);
+
+$pedidos = json_decode($response, true);
+
+if ($http_code != 200 || $pedidos === null || empty($pedidos)) {
+    echo "<tr><td colspan='9'>Nenhum resultado encontrado ou Erro ao buscar pedidos.</td></tr>";
     exit();
 }
 
-while ($row = $resultado->fetch_assoc()) {
-    $dataCriacao = date('d/m/Y H:i', strtotime($row['data_criacao']));
-    $dataEvento = date('d/m/Y', strtotime($row['data_evento']));
-    $valor = number_format($row['valor_total'], 2, ',', '.');
-    $statusClass = strtolower(str_replace(' ', '', $row['status']));
-
-    echo "
-        <tr>
-            <td>{$row['id_pedido']}</td>
-            <td>$dataCriacao</td>
-            <td>
-                {$row['nome_cliente']}<br>
-                <small>{$row['telefone']}</small>
-            </td>
-            <td>{$row['tema']}</td>
-            <td>$dataEvento</td>
-            <td>{$row['combo_selecionado']}</td>
-            <td>R$ $valor</td>
-            <td><span class='status-badge $statusClass'>{$row['status']}</span></td>
-            <td>
-                <a href='editar.php?id={$row['id_pedido']}' class='btn-acao btn-editar'>Detalhes/Editar</a>
-                <a href='excluir.php?id_pedido={$row['id_pedido']}' class='btn-acao btn-excluir' onclick=\"return confirm('Tem certeza que deseja excluir este pedido?');\">Excluir</a>
-            </td>
-        </tr>
-    ";
+// O laço de repetição deve ser alterado de $resultado->fetch_assoc() para um loop simples de array
+foreach ($pedidos as $row) {
+    // ... sua lógica de formatação de datas e status
+    // ... echo "<tr>...";
 }
 
-if (isset($stmt)) $stmt->close();
-$conexao->close();
+// REMOVA: $conexao->close();
 ?>

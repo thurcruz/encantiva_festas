@@ -1,3 +1,11 @@
+
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = 'https://vzvftpwiykzptkhaaqmi.supabase.co'
+const supabaseKey = process.env.SUPABASE_KEY
+const supabase = createClient(supabaseUrl, supabaseKey)
+
+
 flatpickr("#dataFesta", {
     dateFormat: "d/m/Y",  
    minDate: new Date().fp_incr(7),      
@@ -548,38 +556,72 @@ function enviarWhatsApp() {
   window.open(url, "_blank");
 }
 
-function enviarPedido() {
-    const dados = {
-        nomeCliente: document.getElementById('nomeCliente').value,
-        telefoneCliente: document.getElementById('telefoneCliente').value,
-        tipoFesta: document.querySelector('input[name="tipoFesta"]:checked')?.value || '',
-        tema: document.getElementById('novoTema').style.display === 'block' 
-              ? document.getElementById('novoTema').value
-              : document.getElementById('pesquisaTema').value,
-        nomeHomenageado: document.getElementById('nomeHomenageado').value,
-        idadeHomenageado: document.getElementById('idadeHomenageado').value,
-        dataFesta: document.getElementById('dataFesta').value,
-        tamanho: selecionadoTamanho,
-        combo: selecionadoCombo,
-        incluiMesa: incluiMesa ? 1 : 0,
-        formaPagamento: document.querySelector('input[name="formaPagamento"]:checked')?.value || '',
-        valorTotal: valorTotal, // variável que você calcula dinamicamente
-        adicionais: selecionadosAdicionais // array de objetos {nome, quantidade, valor}
+async function enviarPedido() {
+    const resumo = getResumoPedido();
+    // ⚠️ Converte a data de 'dd/mm/yyyy' (formato brasileiro) para 'yyyy-mm-dd' (formato SQL)
+    const dataParts = resumo.data.split('/');
+    const dataFestaSQL = `${dataParts[2]}-${dataParts[1]}-${dataParts[0]}`; 
+    
+    // 1. Prepara os dados do pedido principal
+    const dadosPedido = {
+        nome_cliente: resumo.nome,
+        telefone: resumo.telefone,
+        tipo_festa: resumo.tipo,
+        tema: resumo.tema,
+        nome_homenageado: resumo.homenageado,
+        idade_homenageado: resumo.idade ? parseInt(resumo.idade) : null,
+        data_evento: dataFestaSQL, // Data no formato SQL
+        tamanho_festa: resumo.tamanho,
+        combo_selecionado: resumo.comboInfo,
+        inclui_mesa: resumo.mesaInfo.includes("Com mesa") ? true : false,
+        forma_pagamento: resumo.formaPagamento,
+        valor_total: resumo.valorTotal, 
+        status: 'Aguardando Contato' 
     };
 
-    fetch('enviarPedido.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams(dados)
-    })
-    .then(res => res.json())
-    .then(data => {
-        if(data.success){
-            alert(data.message);
-            window.location.reload();
-        } else {
-            alert(data.message);
+    try {
+        // 2. Insere na tabela 'pedidos' e pega o ID gerado
+        const { data: pedidoInserido, error: pedidoError } = await supabase
+            .from('pedidos')
+            .insert([dadosPedido])
+            .select('id_pedido')
+            .single();
+
+        if (pedidoError) throw pedidoError;
+
+        const idPedido = pedidoInserido.id_pedido;
+
+        // 3. Prepara e insere os adicionais (se houver)
+        const adicionaisParaInserir = adicionais
+            .map((item, i) => {
+                const qtd = quantidadesAdicionais[i] || 0;
+                if (qtd > 0) {
+                    return {
+                        id_pedido: idPedido,
+                        nome_adicional: item.nome,
+                        quantidade: qtd,
+                        valor_unidade: item.valor,
+                    };
+                }
+                return null;
+            })
+            .filter(Boolean);
+
+        if (adicionaisParaInserir.length > 0) {
+            const { error: adicionaisError } = await supabase
+                .from('pedidos_adicionais')
+                .insert(adicionaisParaInserir);
+
+            if (adicionaisError) throw adicionaisError;
         }
-    })
-    .catch(err => alert('Erro ao enviar pedido: ' + err));
+
+        // 4. Se tudo deu certo, redireciona para o WhatsApp (ou mostra mensagem)
+        // Você pode manter a função enviarWhatsApp() no lugar do alert se preferir.
+        alert(`Pedido #${idPedido} salvo! Enviando para o WhatsApp...`);
+        enviarWhatsApp(); 
+
+    } catch (error) {
+        console.error('Erro ao enviar pedido para o Supabase:', error.message);
+        alert('Erro ao enviar pedido. Verifique o console ou a sua conexão.');
+    }
 }
