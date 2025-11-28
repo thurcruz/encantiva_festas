@@ -1,9 +1,10 @@
+const SUPABASE_URL = 'https://vzvftpwiykzptkhaaqmi.supabase.co';
+// ⚠️ ATENÇÃO: Substitua 'SUA_CHAVE_ANON_PUBLIC_AQUI' pela sua chave Anon (pública).
+// A Anon Key é segura para uso no frontend.
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ6dmZ0cHdpeWt6cHRraGFhcW1pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQyNTc1MTYsImV4cCI6MjA3OTgzMzUxNn0.oRsaIywJxwaU1484HD8w1qtT89zgRil4CYvHwvKL6LY'; 
 
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseUrl = 'https://vzvftpwiykzptkhaaqmi.supabase.co'
-const supabaseKey = process.env.SUPABASE_KEY
-const supabase = createClient(supabaseUrl, supabaseKey)
+// Inicializa o cliente usando a função createClient que está disponível globalmente via CDN
+const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 
 flatpickr("#dataFesta", {
