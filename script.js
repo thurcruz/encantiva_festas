@@ -1,9 +1,14 @@
+// ==========================================
+// ✅ CORREÇÃO: Usando 'supabaseClient' para evitar conflito
+// ==========================================
+
 const SUPABASE_URL = 'https://vzvftpwiykzptkhaaqmi.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ6dmZ0cHdpeWt6cHRraGFhcW1pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQyNTc1MTYsImV4cCI6MjA3OTgzMzUxNn0.oRsaIywJxwaU1484HD8w1qtT89zgRil4CYvHwvKL6LY'; 
 
-// Inicializa o cliente usando a função createClient que está disponível globalmente via CDN
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// 1. RENOMEIE a variável para supabaseClient
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// ==========================================
 
 flatpickr("#dataFesta", {
     dateFormat: "d/m/Y",  
@@ -556,12 +561,12 @@ function enviarWhatsApp() {
 }
 
 async function enviarPedido() {
+    // 1. Coleta e formata os dados
     const resumo = getResumoPedido();
-    // ⚠️ Converte a data de 'dd/mm/yyyy' (formato brasileiro) para 'yyyy-mm-dd' (formato SQL)
+    // Converte a data de 'dd/mm/yyyy' para 'yyyy-mm-dd' (formato SQL)
     const dataParts = resumo.data.split('/');
     const dataFestaSQL = `${dataParts[2]}-${dataParts[1]}-${dataParts[0]}`; 
     
-    // 1. Prepara os dados do pedido principal
     const dadosPedido = {
         nome_cliente: resumo.nome,
         telefone: resumo.telefone,
@@ -569,7 +574,7 @@ async function enviarPedido() {
         tema: resumo.tema,
         nome_homenageado: resumo.homenageado,
         idade_homenageado: resumo.idade ? parseInt(resumo.idade) : null,
-        data_evento: dataFestaSQL, // Data no formato SQL
+        data_evento: dataFestaSQL, 
         tamanho_festa: resumo.tamanho,
         combo_selecionado: resumo.comboInfo,
         inclui_mesa: resumo.mesaInfo.includes("Com mesa") ? true : false,
@@ -579,8 +584,8 @@ async function enviarPedido() {
     };
 
     try {
-        // 2. Insere na tabela 'pedidos' e pega o ID gerado
-        const { data: pedidoInserido, error: pedidoError } = await supabase
+        // 2. Insere na tabela 'pedidos'
+        const { data: pedidoInserido, error: pedidoError } = await supabaseClient // 🎯 USANDO supabaseClient
             .from('pedidos')
             .insert([dadosPedido])
             .select('id_pedido')
@@ -607,20 +612,20 @@ async function enviarPedido() {
             .filter(Boolean);
 
         if (adicionaisParaInserir.length > 0) {
-            const { error: adicionaisError } = await supabase
+            const { error: adicionaisError } = await supabaseClient // 🎯 USANDO supabaseClient
                 .from('pedidos_adicionais')
                 .insert(adicionaisParaInserir);
 
             if (adicionaisError) throw adicionaisError;
         }
 
-        // 4. Se tudo deu certo, redireciona para o WhatsApp (ou mostra mensagem)
-        // Você pode manter a função enviarWhatsApp() no lugar do alert se preferir.
-        alert(`Pedido #${idPedido} salvo! Enviando para o WhatsApp...`);
+        // 4. Se tudo deu certo, envia para o WhatsApp
+        alert(`Pedido #${idPedido} salvo no Supabase! Enviando para o WhatsApp para confirmação...`);
         enviarWhatsApp(); 
 
     } catch (error) {
+        // Mostra um erro amigável se a inserção falhar (ex: RLS não configurado)
         console.error('Erro ao enviar pedido para o Supabase:', error.message);
-        alert('Erro ao enviar pedido. Verifique o console ou a sua conexão.');
+        alert('Erro ao enviar pedido. Verifique se o RLS está configurado no Supabase para a tabela "pedidos".');
     }
 }
